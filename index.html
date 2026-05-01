@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Set Cover — BCS 309</title>
+<style>
+  /* ─── DESIGN TOKENS ─────────────────────────────────────── */
+  :root{
+    --bg:       #0d1117;
+    --panel:    #161b22;
+    --border:   #30363d;
+    --accent:   #58a6ff;
+    --accent2:  #3fb950;
+    --accent3:  #f78166;
+    --accent4:  #d2a8ff;
+    --text:     #c9d1d9;
+    --muted:    #6e7681;
+    --head:     #e6edf3;
+    --warn:     #e3b341;
+    --sel:      rgba(88,166,255,.18);
+    --cover1:   #58a6ff;
+    --cover2:   #3fb950;
+    --cover3:   #f78166;
+    --cover4:   #d2a8ff;
+    --cover5:   #e3b341;
+    --cover6:   #79c0ff;
+    --radius:   8px;
+    --mono:     'JetBrains Mono','Fira Code','Consolas',monospace;
+    --sans:     'Inter','Segoe UI',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{font-size:15px}
+  body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;line-height:1.6}
+  a{color:var(--accent)}
+  h1,h2,h3,h4{color:var(--head);font-weight:600}
+  button{cursor:pointer;border:none;border-radius:var(--radius);font-family:var(--sans);font-size:.85rem;font-weight:600;transition:all .15s}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  input[type=text],input[type=number],select,textarea{background:#0d1117;border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:var(--sans);font-size:.85rem;padding:.4rem .6rem;width:100%}
+  input[type=text]:focus,input[type=number]:focus,select:focus{outline:2px solid var(--accent);border-color:transparent}
+  label{color:var(--muted);font-size:.8rem;font-weight:500;display:block;margin-bottom:.3rem}
+
+  /* ─── HEADER ─────────────────────────────────────────────── */
+  .site-header{background:var(--panel);border-bottom:1px solid var(--border);padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem}
+  .site-header h1{font-size:1.15rem;color:var(--head)}
+  .site-header .sub{font-size:.78rem;color:var(--muted)}
+  .header-badge{display:flex;gap:.5rem;flex-wrap:wrap}
+  .badge{background:var(--sel);border:1px solid var(--border);border-radius:20px;padding:.2rem .7rem;font-size:.72rem;color:var(--accent);font-weight:600}
+
+  /* ─── NAV TABS ───────────────────────────────────────────── */
+  .tab-nav{display:flex;background:var(--panel);border-bottom:1px solid var(--border);overflow-x:auto}
+  .tab-btn{background:transparent;border-radius:0;color:var(--muted);padding:.75rem 1.2rem;border-bottom:2px solid transparent;white-space:nowrap;font-size:.85rem}
+  .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .tab-btn:hover:not(.active){color:var(--text)}
+  .tab-content{display:none}.tab-content.active{display:block}
+
+  /* ─── COLLAPSIBLE ─────────────────────────────────────────── */
+  .collapsible{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:1rem;overflow:hidden}
+  .collapsible-header{padding:.75rem 1rem;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:.9rem;color:var(--head);user-select:none}
+  .collapsible-header:hover{background:rgba(255,255,255,.03)}
+  .collapsible-header .caret{transition:transform .25s;font-size:.7rem;color:var(--muted)}
+  .collapsible-header.open .caret{transform:rotate(180deg)}
+  .collapsible-body{padding:1rem;display:none;border-top:1px solid var(--border)}
+  .collapsible-body.open{display:block}
+
+  /* ─── TWO-COLUMN LAYOUT ──────────────────────────────────── */
+  .two-col{display:grid;grid-template-columns:280px 1fr;gap:1rem;padding:1rem;align-items:start}
+  @media(max-width:900px){.two-col{grid-template-columns:1fr}.ctrl-panel{position:static;max-height:50vh;overflow-y:auto}}
+
+  /* ─── CONTROL PANEL ──────────────────────────────────────── */
+  .ctrl-panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;display:flex;flex-direction:column;gap:.8rem;position:sticky;top:1rem}
+  .ctrl-section{border-top:1px solid var(--border);padding-top:.8rem}
+  .ctrl-section:first-child{border-top:none;padding-top:0}
+  .ctrl-section h4{font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.6rem}
+
+  /* ─── BUTTONS ────────────────────────────────────────────── */
+  .btn-row{display:flex;gap:.4rem;flex-wrap:wrap}
+  .btn{padding:.4rem .8rem;background:var(--panel);border:1px solid var(--border);color:var(--text)}
+  .btn:hover{background:rgba(255,255,255,.05);border-color:var(--accent);color:var(--accent)}
+  .btn-primary{background:var(--accent);color:#0d1117}.btn-primary:hover{opacity:.85}
+  .btn-success{background:var(--accent2);color:#0d1117}.btn-success:hover{opacity:.85}
+  .btn-danger{background:var(--accent3);color:#fff}.btn-danger:hover{opacity:.85}
+  .btn-warn{background:var(--warn);color:#0d1117}.btn-warn:hover{opacity:.85}
+  .btn-sm{font-size:.75rem;padding:.3rem .6rem}
+
+  /* ─── STAT CARDS ─────────────────────────────────────────── */
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:.5rem;margin-top:.5rem}
+  .stat-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:.5rem .7rem;text-align:center}
+  .stat-card .val{font-size:1.4rem;font-weight:700;color:var(--accent);font-family:var(--mono)}
+  .stat-card .lbl{font-size:.68rem;color:var(--muted);margin-top:.1rem}
+
+  /* ─── VISUALIZATION AREA ─────────────────────────────────── */
+  .viz-area{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;min-height:340px}
+  .viz-title{font-size:.85rem;font-weight:600;color:var(--muted);margin-bottom:.6rem;text-transform:uppercase;letter-spacing:.06em}
+
+  /* ─── SVG canvas ─────────────────────────────────────────── */
+  #mainSvg{width:100%;border-radius:6px;background:#0a0f16}
+  #mainSvg rect, #mainSvg circle{transition:fill .3s,stroke .3s,opacity .3s}
+
+  /* ─── STATUS / STEP DISPLAY ──────────────────────────────── */
+  .status-bar{display:flex;gap:1rem;flex-wrap:wrap;align-items:center;padding:.5rem .8rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:.82rem}
+  .status-indicator{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:.3rem}
+  .status-indicator.running{background:var(--accent2);box-shadow:0 0 6px var(--accent2);animation:pulse 1s infinite}
+  .status-indicator.done{background:var(--accent2)}
+  .status-indicator.idle{background:var(--muted)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+  /* ─── PSEUDOCODE ─────────────────────────────────────────── */
+  .pseudocode{background:#0a0f16;border:1px solid var(--border);border-radius:var(--radius);padding:.8rem 1rem;font-family:var(--mono);font-size:.78rem;line-height:1.8;overflow-x:auto;max-height:320px;overflow-y:auto}
+  .pseudocode .pc-line{padding:0 .4rem;border-radius:3px;transition:background .2s;display:block}
+  .pseudocode .pc-line.hl{background:rgba(88,166,255,.22);color:var(--head)}
+  .pc-ln{color:var(--muted);user-select:none;margin-right:.8rem;font-size:.7rem}
+
+  /* ─── STEP EXPLANATION ───────────────────────────────────── */
+  .step-box{background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.3);border-radius:var(--radius);padding:.75rem 1rem;font-size:.83rem;min-height:54px;color:var(--text)}
+  .step-box strong{color:var(--accent)}
+
+  /* ─── LEGEND ─────────────────────────────────────────────── */
+  .legend{display:flex;gap:.6rem;flex-wrap:wrap;font-size:.75rem}
+  .legend-item{display:flex;align-items:center;gap:.35rem}
+  .legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+  /* ─── KEY CONCEPT BOX ────────────────────────────────────── */
+  .concept-box{background:rgba(63,185,80,.07);border:1px solid rgba(63,185,80,.3);border-radius:var(--radius);padding:.75rem 1rem;font-size:.83rem;margin:.5rem 0}
+  .concept-box h4{color:var(--accent2);margin-bottom:.4rem;font-size:.85rem}
+  .info-box{background:rgba(88,166,255,.07);border:1px solid rgba(88,166,255,.25);border-radius:var(--radius);padding:.75rem 1rem;font-size:.83rem;margin:.5rem 0}
+  .info-box h4{color:var(--accent);margin-bottom:.4rem;font-size:.85rem}
+  .warn-box{background:rgba(227,179,65,.07);border:1px solid rgba(227,179,65,.25);border-radius:var(--radius);padding:.75rem 1rem;font-size:.83rem;margin:.5rem 0}
+  .warn-box h4{color:var(--warn);margin-bottom:.4rem;font-size:.85rem}
+
+  /* ─── TABLE ──────────────────────────────────────────────── */
+  table{width:100%;border-collapse:collapse;font-size:.82rem;margin:.5rem 0}
+  th{background:rgba(255,255,255,.05);color:var(--head);font-weight:600;text-align:left;padding:.5rem .7rem;border-bottom:1px solid var(--border)}
+  td{padding:.45rem .7rem;border-bottom:1px solid rgba(48,54,61,.5)}
+  tr:hover td{background:rgba(255,255,255,.02)}
+
+  /* ─── CHART ──────────────────────────────────────────────── */
+  #growthChart{width:100%;height:360px;background:#0a0f16;border-radius:var(--radius);border:1px solid var(--border);display:block}
+
+  /* ─── COMPARISON MODE ────────────────────────────────────── */
+  .compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+  @media(max-width:700px){.compare-grid{grid-template-columns:1fr}}
+  .compare-panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:.8rem}
+  .compare-panel h4{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:.6rem}
+
+  /* ─── NP SECTION ─────────────────────────────────────────── */
+  .np-flow{display:flex;align-items:center;flex-wrap:wrap;gap:.5rem;font-size:.82rem}
+  .np-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:.5rem .9rem;text-align:center;min-width:120px}
+  .np-box strong{display:block;font-size:.95rem;color:var(--accent)}
+  .np-arrow{color:var(--muted);font-size:1.2rem}
+
+  /* ─── WORKED EXAMPLE ─────────────────────────────────────── */
+  .example-step{border-left:3px solid var(--accent);padding:.4rem .8rem;margin:.4rem 0;font-size:.83rem}
+  .example-step.done{border-color:var(--accent2)}
+  .example-step strong{color:var(--head)}
+
+  /* ─── MISC ───────────────────────────────────────────────── */
+  .mono{font-family:var(--mono)}
+  .muted{color:var(--muted)}
+  .pill{display:inline-block;padding:.1rem .55rem;border-radius:20px;font-size:.72rem;font-weight:600}
+  .pill-blue{background:rgba(88,166,255,.15);color:var(--accent);border:1px solid rgba(88,166,255,.3)}
+  .pill-green{background:rgba(63,185,80,.15);color:var(--accent2);border:1px solid rgba(63,185,80,.3)}
+  .pill-red{background:rgba(247,129,102,.15);color:var(--accent3);border:1px solid rgba(247,129,102,.3)}
+  .pill-purple{background:rgba(210,168,255,.15);color:var(--accent4);border:1px solid rgba(210,168,255,.3)}
+  hr{border:none;border-top:1px solid var(--border);margin:.8rem 0}
+  .set-tag{display:inline-block;border-radius:4px;padding:.1rem .4rem;font-size:.75rem;font-weight:700;margin:.1rem;font-family:var(--mono)}
+  .elem-dot{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;border:2px solid var(--border);font-size:.72rem;font-weight:700;margin:.15rem;font-family:var(--mono);transition:all .3s}
+  .elem-dot.covered{border-color:transparent}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;align-items:start}
+  @media(max-width:600px){.grid-2{grid-template-columns:1fr}}
+  .full-width{grid-column:1/-1}
+</style>
+</head>
+<body>
+
+<!-- ══════════ HEADER ══════════ -->
+<header class="site-header">
+  <div>
+    <h1>🎯 Set Cover Problem</h1>
+    <div class="sub">BCS 309 — Algorithms I &nbsp;|&nbsp; Spring 2026 &nbsp;|&nbsp; Ahmad Karasi</div>
+  </div>
+  <div class="header-badge" style="display:none">
+    <span class="badge">CLO-3: Design</span>
+    <span class="badge">CLO-4: Apply</span>
+    <span class="badge">CLO-5: NP-Complete</span>
+  </div>
+</header>
+
+<!-- ══════════ TAB NAV ══════════ -->
+<nav class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab(event,'overview')">📖 Overview</button>
+  <button class="tab-btn" onclick="switchTab(event,'tool')">⚙️ Interactive Tool</button>
+  <button class="tab-btn" onclick="switchTab(event,'compare')">⚖️ Comparison Mode</button>
+  <button class="tab-btn" onclick="switchTab(event,'np')">🔐 NP-Completeness</button>
+  <button class="tab-btn" onclick="switchTab(event,'analysis')">📊 Analysis</button>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════════
+     TAB 1 — OVERVIEW
+══════════════════════════════════════════════════════════ -->
+<div id="tab-overview" class="tab-content active" style="padding:1rem;max-width:900px;margin:0 auto">
+
+  <div class="collapsible">
+    <div class="collapsible-header open" onclick="toggleCollapse(this)">
+      📌 Welcome — Start Here <span class="caret">▼</span>
+    </div>
+    <div class="collapsible-body open">
+      <h3 style="margin-bottom:.5rem">What is the Set Cover Problem?</h3>
+      <p style="margin-bottom:.7rem">Given a <strong style="color:var(--accent)">universe U</strong> of <em>n</em> elements and a collection <strong style="color:var(--accent2)">C</strong> of subsets of U, and an integer <strong style="color:var(--warn)">k</strong>, does there exist a sub-collection of at most <em>k</em> sets whose <strong>union equals U</strong>?</p>
+      <div class="info-box">
+        <h4>Formal Definition</h4>
+        <span class="mono">Input:</span> Universe U = {e₁, e₂, …, eₙ}, sets S₁, S₂, …, Sₘ ⊆ U, integer k<br>
+        <span class="mono">Question:</span> ∃ sub-collection {Sᵢ₁, …, Sᵢₜ} ⊆ C with t ≤ k such that Sᵢ₁ ∪ … ∪ Sᵢₜ = U?
+      </div>
+      <div class="grid-2" style="margin-top:.8rem">
+        <div class="concept-box">
+          <h4>Real-World Applications</h4>
+          <ul style="padding-left:1.2rem;font-size:.82rem">
+            <li><strong>Facility location:</strong> Fewest warehouses to serve all cities</li>
+            <li><strong>Wireless coverage:</strong> Fewest base stations to cover all zones</li>
+            <li><strong>Species habitat:</strong> Fewest reserves to protect all species</li>
+            <li><strong>Software testing:</strong> Fewest test cases to cover all code paths</li>
+          </ul>
+        </div>
+        <div class="warn-box">
+          <h4>Why is it Hard?</h4>
+          <p style="font-size:.82rem">Set Cover is <strong>NP-complete</strong>. No polynomial-time exact algorithm is known. With m subsets, brute-force tries all 2ᵐ sub-collections — infeasible for large inputs. A common practical approximation approach is the <strong>greedy O(ln n)-approximation</strong>.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header" onclick="toggleCollapse(this)">
+      🎓 How to Use This Tool <span class="caret">▼</span>
+    </div>
+    <div class="collapsible-body">
+      <ol style="padding-left:1.2rem;font-size:.83rem;line-height:2">
+        <li>Go to <strong>Interactive Tool</strong> tab — pick a preset or enter a custom instance.</li>
+        <li>Click <strong>Build Steps</strong> to pre-compute the algorithm trace.</li>
+        <li>Use <strong>Step</strong> or <strong>Play</strong> to animate the algorithm one step at a time.</li>
+        <li>The <strong>pseudocode panel</strong> highlights the current line. The <strong>step explanation box</strong> shows what is happening and why.</li>
+        <li>Switch to <strong>Comparison Mode</strong> to run brute-force vs greedy side-by-side.</li>
+        <li>Visit <strong>NP-Completeness</strong> for the full proof with interactive reduction diagram.</li>
+        <li>Visit <strong>Analysis</strong> for the growth curve and approximation ratio discussion.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header" onclick="toggleCollapse(this)">
+      📚 Worked Example <span class="caret">▼</span>
+    </div>
+    <div class="collapsible-body">
+      <p style="font-size:.83rem;margin-bottom:.7rem">U = {1, 2, 3, 4, 5} &nbsp;|&nbsp; S₁={1,2,3}, S₂={2,4}, S₃={3,4,5}, S₄={4,5} &nbsp;|&nbsp; k = 2</p>
+      <p style="font-size:.82rem;margin-bottom:.5rem"><strong>Greedy Execution:</strong></p>
+      <div class="example-step">
+        <strong>Step 1:</strong> Uncovered = {1,2,3,4,5}. Count coverage of each set:<br>
+        |S₁∩Uncov| = 3, |S₂∩Uncov| = 2, |S₃∩Uncov| = 3, |S₄∩Uncov| = 2.<br>
+        Pick <span class="set-tag" style="background:rgba(88,166,255,.2);color:var(--accent)">S₁</span> (ties broken by index). Uncovered = {4, 5}.
+      </div>
+      <div class="example-step">
+        <strong>Step 2:</strong> Uncovered = {4,5}. |S₂∩Uncov|=1, |S₃∩Uncov|=2, |S₄∩Uncov|=2.<br>
+        Pick <span class="set-tag" style="background:rgba(63,185,80,.2);color:var(--accent2)">S₃</span>. Uncovered = ∅. Done!
+      </div>
+      <div class="example-step done">
+        <strong>Result:</strong> Greedy cover = {S₁, S₃}. Size = 2 = k. ✓ Optimal!
+      </div>
+      <div class="warn-box" style="margin-top:.7rem">
+        <h4>Counterexample: Greedy is not always optimal</h4>
+        <p style="font-size:.82rem">U={1,2,3,4,5,6,7}, S₁={1,2,3,4}, S₂={1,2,5,6}, S₃={3,4,5,7}.<br>
+        <strong>Optimal:</strong> {S₂, S₃} (size 2) — S₂∪S₃ = {1,2,3,4,5,6,7} = U. ✓<br>
+        <strong>Greedy:</strong> Step 1 picks S₁ (4 new elements). Step 2 picks S₂ (2 new: 5,6). Step 3 picks S₃ (1 new: 7). Total = 3 sets.<br>
+        Greedy uses 3 sets vs optimal 2. The approximation ratio here is 3/2 ≤ H(7) ≈ 2.59. Bound holds. ✓<br>
+        This is Preset 3 in the Interactive Tool — try it yourself!</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header" onclick="toggleCollapse(this)">
+      📖 Reference & Credits <span class="caret">▼</span>
+    </div>
+    <div class="collapsible-body">
+      <ul style="font-size:.83rem;line-height:1.9;padding-left:1.2rem">
+        <li>Cormen, T. et al. <em>Introduction to Algorithms</em>, 4th ed. Chapter 35 (Approximation Algorithms).</li>
+        <li><a href="https://en.wikipedia.org/wiki/Set_cover_problem" target="_blank">Wikipedia — Set Cover Problem</a></li>
+        <li>Vazirani, V. <em>Approximation Algorithms</em>, Springer, 2001.</li>
+        <li>Canadian University Dubai — BCS 309, Spring 2026.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     TAB 2 — INTERACTIVE TOOL
+══════════════════════════════════════════════════════════ -->
+<div id="tab-tool" class="tab-content">
+  <div class="two-col">
+
+    <!-- LEFT: Controls -->
+    <aside class="ctrl-panel">
+
+      <div class="ctrl-section">
+        <h4>Algorithm</h4>
+        <select id="algoSelect" onchange="onAlgoChange()">
+          <option value="greedy">Greedy Approximation</option>
+          <option value="brute">Brute-Force Exact</option>
+        </select>
+      </div>
+
+      <div class="ctrl-section">
+        <h4>Preset Examples</h4>
+        <div class="btn-row" style="flex-direction:column;gap:.35rem">
+          <button class="btn btn-sm" onclick="loadPreset(0)">📘 Preset 1 — Simple (n=5)</button>
+          <button class="btn btn-sm" onclick="loadPreset(1)">📗 Preset 2 — Medium (n=8)</button>
+          <button class="btn btn-sm" onclick="loadPreset(2)">📙 Preset 3 — Greedy Non-Optimal (n=7)</button>
+          <button class="btn btn-sm" onclick="loadPreset(3)">📕 Preset 4 — Large (n=12)</button>
+        </div>
+      </div>
+
+      <div class="ctrl-section">
+        <h4>Custom Input</h4>
+        <label>Universe size (n)</label>
+        <input type="number" id="uniSize" value="6" min="2" max="15" style="margin-bottom:.5rem">
+        <label>k (max sets to use)</label>
+        <input type="number" id="kVal" value="3" min="1" max="10" style="margin-bottom:.5rem">
+        <label>Number of subsets (m)</label>
+        <input type="number" id="numSets" value="5" min="2" max="10" style="margin-bottom:.5rem">
+        <button class="btn btn-sm btn-primary" onclick="generateRandom()" style="width:100%;margin-bottom:.3rem">🎲 Generate Random</button>
+        <label style="margin-top:.3rem">Or paste sets (one per line, comma-separated elements):</label>
+        <textarea id="customSets" rows="4" placeholder="1,2,3&#10;2,4,5&#10;3,5,6" style="font-family:var(--mono);font-size:.78rem"></textarea>
+        <button class="btn btn-sm btn-warn" onclick="applyCustom()" style="width:100%;margin-top:.3rem">Apply Custom Input</button>
+      </div>
+
+      <div class="ctrl-section">
+        <h4>Speed</h4>
+        <input type="range" id="speedSlider" min="1" max="10" value="5">
+        <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted)"><span>Slow</span><span id="speedLabel">5×</span><span>Fast</span></div>
+      </div>
+
+      <div class="ctrl-section">
+        <h4>Controls</h4>
+        <div class="btn-row" style="margin-bottom:.4rem">
+          <button class="btn btn-primary btn-sm" onclick="buildSteps()">Build Steps</button>
+          <button class="btn btn-sm" onclick="stepForward()">Step ▶</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-success btn-sm" onclick="playAnim()">▶ Play</button>
+          <button class="btn btn-sm" onclick="pauseAnim()">⏸ Pause</button>
+          <button class="btn btn-danger btn-sm" onclick="resetAnim()">↺ Reset</button>
+        </div>
+      </div>
+
+      <div class="ctrl-section">
+        <div class="status-bar">
+          <span id="statusDot" class="status-indicator idle"></span>
+          <span id="statusText">Idle</span>
+          &nbsp;|&nbsp;
+          Step <strong id="stepCount">0</strong> / <strong id="totalSteps">0</strong>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- RIGHT: Visualization -->
+    <main>
+
+      <!-- Universe + coverage display -->
+      <div class="viz-area" style="margin-bottom:.8rem">
+        <div class="viz-title">🌐 Universe & Coverage</div>
+        <div id="universeDisplay" style="min-height:60px;padding:.2rem 0"></div>
+        <div class="legend" style="margin-top:.6rem" id="setLegend"></div>
+      </div>
+
+      <!-- SVG visualization -->
+      <div class="viz-area" style="margin-bottom:.8rem">
+        <div class="viz-title">📊 Set Visualization</div>
+        <svg id="mainSvg" viewBox="0 0 700 300"></svg>
+      </div>
+
+      <!-- Pseudocode + step explanation side-by-side -->
+      <div class="grid-2" style="margin-bottom:.8rem">
+        <div>
+          <div class="viz-title" style="margin-bottom:.4rem">🖥️ Pseudocode</div>
+          <div class="pseudocode" id="pseudocodeBox"></div>
+        </div>
+        <div>
+          <div class="viz-title" style="margin-bottom:.4rem">💡 Step Explanation</div>
+          <div class="step-box" id="stepBox">Click <strong>Build Steps</strong>, then <strong>Step</strong> or <strong>Play</strong> to see line-by-line explanations of what the algorithm is doing and why.</div>
+          <div class="stat-grid" style="margin-top:.6rem">
+            <div class="stat-card"><div class="val" id="statIter">0</div><div class="lbl">Iterations</div></div>
+            <div class="stat-card"><div class="val" id="statSets">0</div><div class="lbl">Sets Picked</div></div>
+            <div class="stat-card"><div class="val" id="statCovered">0</div><div class="lbl">Covered</div></div>
+            <div class="stat-card"><div class="val" id="statOps">0</div><div class="lbl">Operations</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chosen sets result -->
+      <div class="viz-area">
+        <div class="viz-title">✅ Result</div>
+        <div id="resultDisplay" style="font-size:.83rem;color:var(--muted)">Run the algorithm to see the result here.</div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     TAB 3 — COMPARISON MODE
+══════════════════════════════════════════════════════════ -->
+<div id="tab-compare" class="tab-content" style="padding:1rem">
+
+  <div style="display:flex;gap:.7rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
+    <select id="cmpPreset" style="width:220px">
+      <option value="0">Preset 1 — Simple (n=5)</option>
+      <option value="1">Preset 2 — Medium (n=8)</option>
+      <option value="2">Preset 3 — Greedy Non-Optimal (n=7)</option>
+      <option value="3">Preset 4 — Large (n=12)</option>
+    </select>
+    <button class="btn btn-primary" onclick="runComparison()">⚖️ Run Comparison</button>
+    <span style="font-size:.8rem;color:var(--muted)">Runs brute-force and greedy on the same instance side-by-side</span>
+  </div>
+
+  <div class="compare-grid">
+    <div class="compare-panel">
+      <h4>🔴 Brute-Force (Exact)</h4>
+      <div class="info-box" style="margin-bottom:.6rem">
+        <strong>Time complexity:</strong> <span class="mono">O(2ᵐ · m · n)</span><br>
+        Tries every sub-collection of sets. Finds <strong>optimal</strong> solution.
+      </div>
+      <div id="cmpBruteViz" style="min-height:120px;font-size:.82rem;color:var(--muted)">Click Run Comparison…</div>
+      <div class="stat-grid" style="margin-top:.6rem">
+        <div class="stat-card"><div class="val" id="cmpBruteOps">–</div><div class="lbl">Operations</div></div>
+        <div class="stat-card"><div class="val" id="cmpBruteSize">–</div><div class="lbl">Cover Size</div></div>
+        <div class="stat-card"><div class="val" id="cmpBruteTime">–</div><div class="lbl">ms</div></div>
+      </div>
+    </div>
+    <div class="compare-panel">
+      <h4>🟢 Greedy (Approximation)</h4>
+      <div class="info-box" style="margin-bottom:.6rem">
+        <strong>Time complexity:</strong> <span class="mono">O(m · n)</span><br>
+        At each step picks the set covering most uncovered elements. Achieves <strong>O(ln n)</strong> approximation.
+      </div>
+      <div id="cmpGreedyViz" style="min-height:120px;font-size:.82rem;color:var(--muted)">Click Run Comparison…</div>
+      <div class="stat-grid" style="margin-top:.6rem">
+        <div class="stat-card"><div class="val" id="cmpGreedyOps">–</div><div class="lbl">Operations</div></div>
+        <div class="stat-card"><div class="val" id="cmpGreedySize">–</div><div class="lbl">Cover Size</div></div>
+        <div class="stat-card"><div class="val" id="cmpGreedyTime">–</div><div class="lbl">ms</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="cmpSummary" style="margin-top:1rem"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     TAB 4 — NP-COMPLETENESS
+══════════════════════════════════════════════════════════ -->
+<div id="tab-np" class="tab-content" style="padding:1rem;max-width:920px;margin:0 auto">
+
+  <div class="collapsible">
+    <div class="collapsible-header open" onclick="toggleCollapse(this)">
+      🏛️ Theorem: Set Cover is NP-Complete <span class="caret">▼</span>
+    </div>
+    <div class="collapsible-body open">
+      <div class="np-flow" style="margin-bottom:1rem;justify-content:center">
+        <div class="np-box"><strong>Vertex Cover</strong><span style="font-size:.72rem;color:var(--muted)">Known NP-complete</span></div>
+        <span class="np-arrow">⟶<sub style="font-size:.6rem">poly</sub></span>
+        <div class="np-box"><strong>Set Cover</strong><span style="font-size:.72rem;color:var(--muted)">We prove NP-complete</span></div>
+      </div>
+      <p style="font-size:.83rem">We prove Set Cover is NP-complete by showing (1) it is in NP, and (2) Vertex Cover reduces to it in polynomial time.</p>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header open" onclick="toggleCollapse(this)">
+      ✅ Step 1: Set Cover is in NP <span class="caret">▼</span>
+    </div>
+    <div class="collapsible-body open">
+      <div class="grid-2">
+        <div class="concept-box">
+          <h4>Certificate</h4>
+          <p style="font-size:.82rem">A proposed solution is a sub-collection <strong>T ⊆ C</strong> of at most k sets.</p>
+        </div>
+        <div class="concept-box">
+          <h4>Verifier</h4>
+          <p style="font-size:.82rem">
+            Given T, a polynomial-time verifier:<br>
+            1. Checks |T| ≤ k &nbsp;— O(1)<br>
+            2. Computes ⋃<sub>S∈T</sub> S &nbsp;— O(k·n)<br>
+            3. Checks the union equals U &nbsp;— O(n)<br>
+            Total: <strong>O(k·n) = polynomial</strong>. ✓
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header open" onclick="toggleCollapse(this)">
+      🔗 Step 2: Reduction from Vertex Cover to Set Cover <span class="caret">▼</span>
+    </div>
+    <div class="collapsible-body open">
+      <h4 style="margin-bottom:.5rem;font-size:.9rem">Construction</h4>
+      <div class="info-box">
+        <p style="font-size:.82rem">Given a Vertex Cover instance <strong>(G = (V, E), k)</strong>, construct a Set Cover instance:</p>
+        <ul style="padding-left:1.2rem;font-size:.82rem;margin-top:.4rem">
+          <li>Universe <strong>U = E</strong> &nbsp;(each edge becomes an element)</li>
+          <li>For each vertex <strong>v ∈ V</strong>, create set <strong>S<sub>v</sub> = { e ∈ E : e is incident to v }</strong></li>
+          <li>Use the same <strong>k</strong></li>
+        </ul>
+        <p style="font-size:.82rem;margin-top:.4rem"><strong>Time:</strong> O(|V| + |E|) to enumerate vertices and edges — polynomial. ✓</p>
+      </div>
+
+      <!-- Interactive reduction diagram -->
+      <h4 style="margin:.8rem 0 .4rem;font-size:.9rem">Interactive Reduction Diagram</h4>
+      <div style="display:flex;gap:.5rem;margin-bottom:.6rem;flex-wrap:wrap">
+        <button class="btn btn-sm btn-primary" onclick="showReductionExample(0)">Example 1 (Triangle)</button>
+        <button class="btn btn-sm btn-primary" onclick="showReductionExample(1)">Example 2 (Path)</button>
+        <button class="btn btn-sm btn-primary" onclick="showReductionExample(2)">Example 3 (Star)</button>
+      </div>
+      <div class="grid-2">
+        <div class="viz-area">
+          <div class="viz-title">Vertex Cover Instance (G, k)</div>
+          <svg id="reductSvgL" viewBox="0 0 320 260" style="width:100%;background:#0a0f16;border-radius:4px"></svg>
+          <div id="reductInfoL" style="font-size:.78rem;margin-top:.4rem;color:var(--muted)"></div>
+        </div>
+        <div class="viz-area">
+          <div class="viz-title">Set Cover Instance (U=E, {S<sub>v</sub>}, k)</div>
+          <svg id="reductSvgR" viewBox="0 0 320 260" style="width:100%;background:#0a0f16;border-radius:4px"></svg>
+          <div id="reductInfoR" style="font-size:.78rem;margin-top:.4rem;color:var(--muted)"></div>
+        </div>
+      </div>
+
+      <hr>
+      <h4 style="margin:.6rem 0 .4rem;font-size:.9rem">Correctness Proof</h4>
+      <div class="grid-2">
+        <div class="info-box">
+          <h4>Forward Direction (⟹)</h4>
+          <p style="font-size:.82rem">If G has a vertex cover C* of size k:<br>
+          For each vertex v ∈ C*, include S<sub>v</sub> in our set cover T.<br>
+          Every edge e=(u,w) ∈ E is covered by some vertex in C*, say u.<br>
+          Therefore e ∈ S<sub>u</sub> ⊆ ⋃<sub>v∈C*</sub>S<sub>v</sub>.<br>
+          So T covers all of U=E, and |T| = |C*| ≤ k. ✓</p>
+        </div>
+        <div class="info-box">
+          <h4>Backward Direction (⟸)</h4>
+          <p style="font-size:.82rem">If there is a set cover T ⊆ {S<sub>v</sub>} with |T| ≤ k:<br>
+          Let C* = { v : S<sub>v</sub> ∈ T }.<br>
+          For any edge e=(u,w) ∈ E=U, since T covers U, ∃ S<sub>v</sub> ∈ T with e ∈ S<sub>v</sub>.<br>
+          Since e ∈ S<sub>v</sub>, vertex v is one endpoint of edge e. Therefore at least one endpoint of e is in C*, so e is covered.<br>
+          So every edge is covered, and |C*| = |T| ≤ k. ✓</p>
+        </div>
+      </div>
+      <div class="concept-box full-width" style="margin-top:.5rem">
+        <h4>Conclusion</h4>
+        <p style="font-size:.82rem">The reduction is polynomial, and G has a vertex cover of size k <strong>if and only if</strong> the constructed Set Cover instance has a cover of size k. Since Vertex Cover is NP-complete, Set Cover is NP-hard. Combined with Step 1 (Set Cover ∈ NP), <strong>Set Cover is NP-complete.</strong> □</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     TAB 5 — ANALYSIS
+══════════════════════════════════════════════════════════ -->
+<div id="tab-analysis" class="tab-content" style="padding:1rem;max-width:900px;margin:0 auto">
+
+  <div class="collapsible">
+    <div class="collapsible-header open" onclick="toggleCollapse(this)">
+      📈 Growth Curve: Brute-Force vs Greedy <span class="caret">▼</span>
+    </div>
+    <div class="collapsible-body open">
+      <canvas id="growthChart"></canvas>
+      <div class="legend" style="margin-top:.5rem;justify-content:center">
+        <span class="legend-item"><span class="legend-dot" style="background:var(--accent3)"></span>Brute-Force O(2ᵐ·m·n)</span>
+        <span class="legend-item"><span class="legend-dot" style="background:var(--accent2)"></span>Greedy O(m·n)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header open" onclick="toggleCollapse(this)">
+      🧮 Approximation Ratio Analysis <span class="caret">▼</span>
+    </div>
+    <div class="collapsible-body open">
+      <div class="grid-2">
+        <div>
+          <div class="concept-box">
+            <h4>Theorem (Chvátal 1979)</h4>
+            <p style="font-size:.82rem">The greedy algorithm achieves an approximation ratio of <strong>H(n) = 1 + 1/2 + 1/3 + … + 1/n ≈ ln n</strong>, where n = |U|. This ratio is tight for this specific algorithm — stronger inapproximability lower bounds exist in the literature (e.g., Dinur &amp; Steurer 2014 show that achieving a ratio of (1−ε)ln n is NP-hard for any ε&gt;0), but those require more advanced reductions. For this course, the key result is that greedy achieves H(n) and no polynomial-time algorithm is known to exactly solve Set Cover.</p>
+          </div>
+          <div class="info-box" style="margin-top:.5rem">
+            <h4>Harmonic Number Argument</h4>
+            <p style="font-size:.82rem">Let OPT = optimal cover size. When the greedy algorithm picks a set, at least 1/OPT fraction of the remaining uncovered elements get covered. After OPT·ln(n) steps, fewer than 1 element remains uncovered (by repeated halving). So greedy uses at most OPT·H(n) sets.</p>
+          </div>
+        </div>
+        <div>
+          <table>
+            <thead><tr><th>n (|U|)</th><th>ln(n)</th><th>H(n)</th><th>Ratio</th></tr></thead>
+            <tbody id="ratioTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header open" onclick="toggleCollapse(this)">
+      ⏱️ Complexity Comparison Table <span class="caret">▼</span>
+    </div>
+    <div class="collapsible-body open">
+      <table>
+        <thead>
+          <tr><th>Approach</th><th>Time</th><th>Space</th><th>Optimality</th><th>Use When</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="pill pill-red">Brute-Force</span></td><td class="mono">O(2ᵐ · m · n)</td><td class="mono">O(m)</td><td>Exact</td><td>m ≤ 20, need certifiably optimal</td></tr>
+          <tr><td><span class="pill pill-green">Greedy</span></td><td class="mono">O(m · n)</td><td class="mono">O(n + m)</td><td>H(n)-approx</td><td>Large instances, need fast solution</td></tr>
+          <tr><td><span class="pill pill-blue">LP Rounding</span></td><td class="mono">O(poly)</td><td class="mono">O(n·m)</td><td>ln(n)-approx</td><td>Advanced approximation research</td></tr>
+          <tr><td><span class="pill pill-purple">ILP</span></td><td class="mono">NP-hard</td><td class="mono">O(n·m)</td><td>Exact</td><td>Structured problems with good solvers</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="collapsible">
+    <div class="collapsible-header" onclick="toggleCollapse(this)">
+      🎲 Live Operations Counter <span class="caret">▼</span>
+    </div>
+    <div class="collapsible-body">
+      <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:.6rem">
+        <label style="display:inline">m (sets):</label>
+        <input type="range" id="liveM" min="2" max="20" value="8" style="width:160px" oninput="updateLiveOps()">
+        <span id="liveMVal" class="mono" style="color:var(--accent)">8</span>
+        <label style="display:inline;margin-left:.5rem">n (elements):</label>
+        <input type="range" id="liveN" min="2" max="30" value="10" style="width:160px" oninput="updateLiveOps()">
+        <span id="liveNVal" class="mono" style="color:var(--accent)">10</span>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="val" id="liveBrute">–</div><div class="lbl">Brute-Force Ops</div></div>
+        <div class="stat-card"><div class="val" id="liveGreedy">–</div><div class="lbl">Greedy Ops</div></div>
+        <div class="stat-card"><div class="val" id="liveRatio">–</div><div class="lbl">Speedup Ratio</div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════════════════ -->
+<script>
+// ─── COLORS ─────────────────────────────────────────────────
+const COLORS=['#58a6ff','#3fb950','#f78166','#d2a8ff','#e3b341','#79c0ff','#56d364','#ff7b72','#bc8cff','#f0883e'];
+
+// ─── STATE ────────────────────────────────────────────────────
+let universe=[], sets=[], kParam=3;
+let steps=[], curStep=-1, animTimer=null, ops=0;
+let builtAlgo='greedy';
+
+// ─── PRESETS ──────────────────────────────────────────────────
+const PRESETS=[
+  {name:'Simple',u:[1,2,3,4,5],sets:[[1,2,3],[2,4],[3,4,5],[1,5]],k:2},
+  {name:'Medium (n=8)',u:[1,2,3,4,5,6,7,8],sets:[[1,2,3],[3,4,5],[5,6],[7,8],[1,4,7],[2,6,8]],k:3},
+  {name:'Greedy Non-Optimal',u:[1,2,3,4,5,6,7],sets:[[1,2,3,4],[1,2,5,6],[3,4,5,7]],k:3},
+  {name:'Large (n=12)',u:[1,2,3,4,5,6,7,8,9,10,11,12],sets:[[1,2,3,4],[3,4,5,6],[5,6,7,8],[7,8,9,10],[9,10,11,12],[1,6,11],[2,7,12],[3,8],[4,9],[5,10]],k:3},
+];
+
+function loadPreset(i){
+  if(i<0||i>=PRESETS.length)return;
+  const p=PRESETS[i];
+  universe=[...p.u]; sets=p.sets.map(s=>[...s]); kParam=p.k;
+  document.getElementById('kVal').value=kParam;
+  resetAnim(); renderLegend(); renderUniverse(); renderSvg();
+}
+
+function generateRandom(){
+  const n=parseInt(document.getElementById('uniSize').value)||6;
+  const m=parseInt(document.getElementById('numSets').value)||5;
+  kParam=parseInt(document.getElementById('kVal').value)||3;
+  universe=Array.from({length:n},(_,i)=>i+1);
+  sets=[];
+  for(let i=0;i<m;i++){
+    const sz=Math.max(2,Math.floor(Math.random()*n*.6)+2);
+    const s=[];
+    const pool=[...universe];
+    for(let j=0;j<sz&&pool.length;j++){
+      const idx=Math.floor(Math.random()*pool.length);
+      s.push(pool.splice(idx,1)[0]);
+    }
+    sets.push(s.sort((a,b)=>a-b));
+  }
+  // guarantee coverage
+  let remaining=[...universe];
+  sets.forEach(s=>s.forEach(e=>remaining=remaining.filter(x=>x!==e)));
+  if(remaining.length>0) sets[0]=[...new Set([...sets[0],...remaining])].sort((a,b)=>a-b);
+  resetAnim(); renderLegend(); renderUniverse(); renderSvg();
+}
+
+function applyCustom(){
+  const lines=document.getElementById('customSets').value.trim().split('\n').filter(l=>l.trim());
+  const n=parseInt(document.getElementById('uniSize').value)||0;
+  if(n>0){
+    universe=Array.from({length:n},(_,i)=>i+1);
+  } else {
+    // fallback: derive universe from the union of all pasted sets (before filtering)
+    const raw=lines.map(l=>l.split(',').map(x=>Number(x.trim())).filter(x=>Number.isInteger(x)&&x===x));
+    const all=new Set(); raw.forEach(s=>s.forEach(e=>all.add(e)));
+    universe=[...all].sort((a,b)=>a-b);
+  }
+  // Sanitize: keep only integers that exist in universe, remove duplicates within each set
+  const Uset=new Set(universe);
+  sets=lines.map(l=>{
+    const parsed=l.split(',').map(x=>Number(x.trim())).filter(x=>Number.isInteger(x)&&Uset.has(x));
+    return [...new Set(parsed)].sort((a,b)=>a-b);
+  }).filter(s=>s.length>0);
+  // Limit to 10 sets so visualization is not truncated without warning
+  if(sets.length>10){
+    alert(`Custom input has ${sets.length} sets but only 10 can be visualized. Trimming to first 10 sets.`);
+    sets=sets.slice(0,10);
+  }
+  kParam=parseInt(document.getElementById('kVal').value)||2;
+  resetAnim(); renderLegend(); renderUniverse(); renderSvg();
+}
+
+function onAlgoChange(){
+  resetAnim();
+  renderPseudocode(document.getElementById('algoSelect').value,-1);
+}
+
+// ─── PSEUDOCODE ───────────────────────────────────────────────
+const PC_GREEDY=[
+  'procedure GREEDY-SET-COVER(U, C, k):',
+  '  covered ← ∅',
+  '  chosen  ← ∅',
+  '  while covered ≠ U:',
+  '    S* ← argmax_{S∈C \\ chosen} |S ∩ (U \\ covered)|',
+  '    if S* covers 0 new elements: return FAIL',
+  '    chosen ← chosen ∪ {S*}',
+  '    covered ← covered ∪ S*',
+  '  if |chosen| ≤ k: return chosen   // SUCCESS',
+  '  else: return chosen              // covered but exceeds k',
+];
+const PC_BRUTE=[
+  'procedure BRUTE-FORCE-SET-COVER(U, C, k):',
+  '  for r ← 1 to k:',
+  '    for each sub-collection T of C with |T| = r:',
+  '      if ⋃_{S∈T} S = U:',
+  '        return T                 // optimal found',
+  '  return FAIL',
+];
+
+function renderPseudocode(algo,hlLine){
+  const lines=algo==='brute'?PC_BRUTE:PC_GREEDY;
+  document.getElementById('pseudocodeBox').innerHTML=lines.map((l,i)=>`<span class="pc-line${i===hlLine?' hl':''}" id="pc${i}"><span class="pc-ln">${String(i+1).padStart(2,' ')}</span>${escH(l)}</span>`).join('');
+  if(hlLine>=0){const el=document.getElementById('pc'+hlLine);if(el)el.scrollIntoView({block:'nearest',behavior:'smooth'});}
+}
+function escH(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+// ─── RENDER ───────────────────────────────────────────────────
+function renderLegend(){
+  document.getElementById('setLegend').innerHTML=sets.map((s,i)=>`<span class="legend-item"><span class="legend-dot" style="background:${COLORS[i%COLORS.length]}"></span>S${i+1}={${s.join(',')}}</span>`).join('');
+}
+
+function renderUniverse(covered=new Set(),chosen=[]){
+  const c=document.getElementById('universeDisplay');
+  c.innerHTML='<div style="margin-bottom:.4rem;font-size:.78rem;color:var(--muted)">Universe U:</div>'+
+    universe.map(e=>{
+      let color='transparent'; let border='var(--border)'; let tc='var(--text)';
+      for(let i=chosen.length-1;i>=0;i--){
+        if(sets[chosen[i]]&&sets[chosen[i]].includes(e)){color=COLORS[chosen[i]%COLORS.length];border='transparent';tc='#0d1117';break;}
+      }
+      return `<span class="elem-dot${covered.has(e)?' covered':''}" style="background:${color};border-color:${border};color:${tc}">${e}</span>`;
+    }).join('');
+}
+
+function renderSvg(covered=new Set(),chosen=[],highlight=-1){
+  const svg=document.getElementById('mainSvg');
+  const W=700;
+  const barH=32,gap=8,startY=20,barW=W-20;
+  const vis=sets.slice(0,Math.min(sets.length,10));
+  const svgH=Math.max(300, startY + vis.length*(barH+gap) + 10);
+  svg.setAttribute('viewBox',`0 0 ${W} ${svgH}`);
+  svg.innerHTML='';
+  vis.forEach((s,i)=>{
+    const y=startY+i*(barH+gap);
+    const col=COLORS[i%COLORS.length];
+    const isChosen=chosen.includes(i);
+    const isHighlight=i===highlight;
+    // background
+    const rect=makeSvgEl('rect',{x:10,y,width:barW,height:barH,rx:6,fill:isChosen?col+'33':isHighlight?col+'22':'#0a0f16',stroke:isChosen||isHighlight?col:'#30363d','stroke-width':isChosen?2:1});
+    svg.appendChild(rect);
+    // label
+    const lbl=makeSvgEl('text',{x:18,y:y+barH/2+5,fill:col,'font-size':'12','font-weight':'bold','font-family':'JetBrains Mono,monospace'});
+    lbl.textContent=`S${i+1}`;
+    svg.appendChild(lbl);
+    // elements
+    const elW=24,startX=55;
+    s.forEach((e,j)=>{
+      const ex=startX+j*(elW+4);
+      const isCov=covered.has(e);
+      const bg=isCov?col:'#161b22';
+      const tc=isCov?'#0d1117':'#c9d1d9';
+      const c=makeSvgEl('circle',{cx:ex+elW/2,cy:y+barH/2,r:10,fill:bg,stroke:col,'stroke-width':1});
+      svg.appendChild(c);
+      const t=makeSvgEl('text',{x:ex+elW/2,y:y+barH/2+4,fill:tc,'font-size':'10','text-anchor':'middle','font-family':'JetBrains Mono,monospace'});
+      t.textContent=e;
+      svg.appendChild(t);
+    });
+    if(isChosen){
+      const chk=makeSvgEl('text',{x:barW-5,y:y+barH/2+5,fill:col,'font-size':'14','text-anchor':'end'});
+      chk.textContent='✓ chosen';
+      svg.appendChild(chk);
+    }
+  });
+}
+
+function makeSvgEl(tag,attrs){
+  const el=document.createElementNS('http://www.w3.org/2000/svg',tag);
+  Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));
+  return el;
+}
+
+// ─── GREEDY STEP BUILDER ──────────────────────────────────────
+function buildGreedySteps(){
+  const stps=[];
+  let covered=new Set(), chosen=[], opCount=0;
+  stps.push({pc:0,covered:new Set(covered),chosen:[...chosen],highlight:-1,ops:opCount,
+    explain:'<strong>Start:</strong> Initialize covered = ∅, chosen = ∅.',
+    sets_cnt:0,iter:0});
+  stps.push({pc:1,covered:new Set(covered),chosen:[...chosen],highlight:-1,ops:opCount,
+    explain:'<strong>covered ← ∅</strong> — no elements covered yet.',sets_cnt:0,iter:0});
+  stps.push({pc:2,covered:new Set(covered),chosen:[...chosen],highlight:-1,ops:opCount,
+    explain:'<strong>chosen ← ∅</strong> — no sets selected yet.',sets_cnt:0,iter:0});
+  let iter=0;
+  while(covered.size<universe.length){
+    iter++;
+    stps.push({pc:3,covered:new Set(covered),chosen:[...chosen],highlight:-1,ops:opCount,
+      explain:`<strong>Iteration ${iter}:</strong> covered=${covered.size}/${universe.length} elements. |chosen|=${chosen.length}. Continue until U is covered.`,sets_cnt:chosen.length,iter});
+    // find best set (skip already-chosen sets)
+    let bestIdx=-1,bestCount=-1;
+    sets.forEach((s,i)=>{
+      if(chosen.includes(i))return;
+      opCount++;
+      const gain=s.filter(e=>!covered.has(e)).length;
+      if(gain>bestCount||(gain===bestCount&&(bestIdx===-1||i<bestIdx))){bestCount=gain;bestIdx=i;}
+    });
+    if(bestIdx===-1||bestCount===0)break;
+    stps.push({pc:4,covered:new Set(covered),chosen:[...chosen],highlight:bestIdx,ops:opCount,
+      explain:`<strong>Evaluate remaining sets (excluding already chosen):</strong> S${bestIdx+1} covers the most new elements (${bestCount} new). Pick it as S*.`,sets_cnt:chosen.length,iter});
+    chosen.push(bestIdx);
+    stps.push({pc:5,covered:new Set(covered),chosen:[...chosen],highlight:bestIdx,ops:opCount,
+      explain:`<strong>chosen ← chosen ∪ {S${bestIdx+1}}</strong> — added S${bestIdx+1} = {${sets[bestIdx].join(',')}}.`,sets_cnt:chosen.length,iter});
+    sets[bestIdx].forEach(e=>covered.add(e));
+    stps.push({pc:6,covered:new Set(covered),chosen:[...chosen],highlight:bestIdx,ops:opCount,
+      explain:`<strong>covered ← covered ∪ S${bestIdx+1}</strong> — covered is now {${[...covered].sort((a,b)=>a-b).join(',')}}.`,sets_cnt:chosen.length,iter});
+  }
+  // final
+  if(covered.size===universe.length){
+    const withinK=chosen.length<=kParam;
+    stps.push({pc:7,covered:new Set(covered),chosen:[...chosen],highlight:-1,ops:opCount,
+      explain:`<strong>${withinK?'Success!':'Covered (exceeds k):'}</strong> All ${universe.length} elements covered in ${chosen.length} sets (k=${kParam}). Cover = {${chosen.map(i=>'S'+(i+1)).join(', ')}}. ${withinK?'✓ Within k!':'⚠ Greedy used more than k sets — approximation ratio is '+chosen.length+'/OPT.'}`,sets_cnt:chosen.length,iter,done:true,fail:!withinK});
+  } else {
+    stps.push({pc:8,covered:new Set(covered),chosen:[...chosen],highlight:-1,ops:opCount,
+      explain:`<strong>Failed:</strong> Only ${covered.size}/${universe.length} elements covered — no remaining set adds new coverage.`,sets_cnt:chosen.length,iter,done:true,fail:true});
+  }
+  return stps;
+}
+
+function buildBruteSteps(){
+  const stps=[];
+  let opCount=0;
+  stps.push({pc:0,covered:new Set(),chosen:[],highlight:-1,ops:0,explain:'<strong>Brute-Force:</strong> Try all sub-collections of C of size 1, 2, …, k in order.',sets_cnt:0,iter:0});
+  const n=universe.length;
+  for(let r=1;r<=kParam;r++){
+    const combos=combinations(sets.length,r);
+    stps.push({pc:1,covered:new Set(),chosen:[],highlight:-1,ops:opCount,
+      explain:`<strong>r = ${r}:</strong> Checking all C(${sets.length},${r}) = ${combos.length} sub-collections of size ${r}.`,sets_cnt:0,iter:r});
+    for(const combo of combos){
+      opCount+=combo.length;
+      const cov=new Set();
+      combo.forEach(i=>sets[i].forEach(e=>cov.add(e)));
+      const full=universe.every(e=>cov.has(e));
+      stps.push({pc:2,covered:new Set(),chosen:[],highlight:combo[0],ops:opCount,
+        explain:`<strong>Try sub-collection of size ${r}:</strong> Testing {${combo.map(i=>'S'+(i+1)).join(',')}} — union = {${[...cov].sort((a,b)=>a-b).join(',')}}.`,sets_cnt:0,iter:r});
+      stps.push({pc:3,covered:cov,chosen:combo,highlight:combo[combo.length-1],ops:opCount,
+        explain:`<strong>Check union = U:</strong> {${combo.map(i=>'S'+(i+1)).join(',')}} covers {${[...cov].sort((a,b)=>a-b).join(',')}}. ${full?'<span style="color:var(--accent2)">✓ Covers all U!</span>':'✗ Incomplete.'}`,sets_cnt:combo.length,iter:r});
+      if(full){
+        stps.push({pc:4,covered:cov,chosen:combo,highlight:-1,ops:opCount,
+          explain:`<strong>Optimal solution found!</strong> Cover = {${combo.map(i=>'S'+(i+1)).join(',')}}. Size = ${combo.length} (optimal).`,sets_cnt:combo.length,iter:r,done:true});
+        return stps;
+      }
+    }
+  }
+  stps.push({pc:5,covered:new Set(),chosen:[],highlight:-1,ops:opCount,
+    explain:`<strong>No cover of size ≤ ${kParam} exists.</strong>`,sets_cnt:0,iter:kParam,done:true,fail:true});
+  return stps;
+}
+
+function combinations(n,r){
+  const result=[];
+  const combo=[];
+  function helper(start){
+    if(combo.length===r){result.push([...combo]);return;}
+    for(let i=start;i<n;i++){combo.push(i);helper(i+1);combo.pop();}
+  }
+  helper(0); return result;
+}
+
+// ─── CONTROLS ─────────────────────────────────────────────────
+function buildSteps(){
+  resetAnim();
+  builtAlgo=document.getElementById('algoSelect').value;
+  steps=builtAlgo==='brute'?buildBruteSteps():buildGreedySteps();
+  curStep=-1;
+  document.getElementById('totalSteps').textContent=steps.length;
+  renderPseudocode(builtAlgo,-1);
+  setStatus('ready','Ready — click Step or Play');
+}
+
+function applyStep(i){
+  if(i<0||i>=steps.length)return;
+  const s=steps[i];
+  renderUniverse(s.covered,[...s.chosen]);
+  renderSvg(s.covered,[...s.chosen],s.highlight);
+  renderPseudocode(builtAlgo,s.pc);
+  document.getElementById('stepBox').innerHTML=s.explain;
+  document.getElementById('statIter').textContent=s.iter;
+  document.getElementById('statSets').textContent=s.sets_cnt;
+  document.getElementById('statCovered').textContent=s.covered.size;
+  document.getElementById('statOps').textContent=s.ops;
+  document.getElementById('stepCount').textContent=i+1;
+  if(s.done){
+    setStatus(s.fail?'idle':'done',s.fail?'No cover found':'✓ Done!');
+    updateResult(s.chosen,s.covered,s.fail,s.ops);
+  }else{
+    setStatus('running','Running…');
+  }
+}
+
+function stepForward(){
+  if(!steps.length){buildSteps();return;}
+  curStep=Math.min(curStep+1,steps.length-1);
+  applyStep(curStep);
+}
+
+function playAnim(){
+  if(!steps.length)buildSteps();
+  if(animTimer)return;
+  const speed=11-parseInt(document.getElementById('speedSlider').value);
+  const delay=speed*60;
+  animTimer=setInterval(()=>{
+    curStep++;
+    if(curStep>=steps.length){clearInterval(animTimer);animTimer=null;return;}
+    applyStep(curStep);
+    if(steps[curStep]&&steps[curStep].done){clearInterval(animTimer);animTimer=null;}
+  },delay);
+}
+
+function pauseAnim(){clearInterval(animTimer);animTimer=null;setStatus('idle','Paused');}
+
+function resetAnim(){
+  clearInterval(animTimer);animTimer=null;
+  steps=[];curStep=-1;ops=0;
+  document.getElementById('stepCount').textContent='0';
+  document.getElementById('totalSteps').textContent='0';
+  document.getElementById('statIter').textContent='0';
+  document.getElementById('statSets').textContent='0';
+  document.getElementById('statCovered').textContent='0';
+  document.getElementById('statOps').textContent='0';
+  document.getElementById('stepBox').innerHTML='Click <strong>Build Steps</strong>, then <strong>Step</strong> or <strong>Play</strong>.';
+  document.getElementById('resultDisplay').innerHTML='Run the algorithm to see the result here.';
+  renderPseudocode(document.getElementById('algoSelect').value,-1);
+  renderUniverse(new Set(),[]);
+  renderSvg(new Set(),[]);
+  setStatus('idle','Idle');
+}
+
+function setStatus(cls,txt){
+  const dot=document.getElementById('statusDot');
+  dot.className='status-indicator '+cls;
+  document.getElementById('statusText').textContent=txt;
+}
+
+function updateResult(chosen,covered,fail,totalOps){
+  const div=document.getElementById('resultDisplay');
+  if(fail&&covered.size<universe.length){
+    div.innerHTML=`<span style="color:var(--accent3)">✗ No valid cover found — some elements could not be covered by any remaining set.</span>`;
+    return;
+  }
+  if(fail&&covered.size===universe.length){
+    const lnn=Math.log(universe.length).toFixed(3);
+    div.innerHTML=`<span style="color:var(--warn)">⚠ Greedy found a valid cover, but it exceeds the limit k (used ${chosen.length} sets, k=${kParam}).</span><br>
+    Sets chosen: <strong>${chosen.map(i=>`<span class="set-tag" style="background:${COLORS[i%COLORS.length]}22;color:${COLORS[i%COLORS.length]};border:1px solid ${COLORS[i%COLORS.length]}55">S${i+1}={${sets[i].join(',')}}</span>`).join(' ')}</strong><br>
+    Approximation guarantee: <strong>≤ ln(n) = ln(${universe.length}) ≈ ${lnn}</strong> &nbsp;|&nbsp; Operations: <strong>${totalOps}</strong>`;
+    return;
+  }
+  div.innerHTML=`<strong style="color:var(--accent2)">✓ Cover found!</strong> &nbsp;
+    Sets chosen: <strong>${chosen.map(i=>`<span class="set-tag" style="background:${COLORS[i%COLORS.length]}22;color:${COLORS[i%COLORS.length]};border:1px solid ${COLORS[i%COLORS.length]}55">S${i+1}={${sets[i].join(',')}}</span>`).join(' ')}</strong><br>
+    Cover size: <strong>${chosen.length}</strong> / k=${kParam} &nbsp;|&nbsp; Elements covered: <strong>${covered.size}/${universe.length}</strong> &nbsp;|&nbsp; Operations: <strong>${totalOps}</strong>`;
+}
+
+document.getElementById('speedSlider').addEventListener('input',function(){
+  document.getElementById('speedLabel').textContent=this.value+'×';
+});
+
+// ─── COLLAPSIBLE ──────────────────────────────────────────────
+function toggleCollapse(hdr){
+  hdr.classList.toggle('open');
+  const body=hdr.nextElementSibling;
+  if(!body)return;
+  body.classList.toggle('open');
+}
+
+// ─── TABS ─────────────────────────────────────────────────────
+function switchTab(event,id){
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if(id==='analysis'){requestAnimationFrame(()=>{drawGrowthChart();buildRatioTable();updateLiveOps();});}
+  if(id==='np'){showReductionExample(0);}
+}
+
+// ─── NP SECTION ───────────────────────────────────────────────
+const REDUCTION_EXAMPLES=[
+  {
+    name:'Triangle',
+    vertices:['A','B','C'],
+    edges:[['A','B'],['B','C'],['A','C']],
+    k:2,
+    vc:['A','B'], // valid vertex cover
+    positions:{A:[80,60],B:[220,60],C:[150,180]},
+  },
+  {
+    name:'Path',
+    vertices:['A','B','C','D'],
+    edges:[['A','B'],['B','C'],['C','D']],
+    k:2,
+    vc:['B','C'],
+    positions:{A:[60,110],B:[140,110],C:[220,110],D:[300,110]},
+  },
+  {
+    name:'Star',
+    vertices:['C','A','B','D','E'],
+    edges:[['C','A'],['C','B'],['C','D'],['C','E']],
+    k:1,
+    vc:['C'],
+    positions:{C:[150,110],A:[60,50],B:[240,50],D:[60,170],E:[240,170]},
+  },
+];
+
+function showReductionExample(idx){
+  const ex=REDUCTION_EXAMPLES[idx];
+  const svgL=document.getElementById('reductSvgL');
+  const svgR=document.getElementById('reductSvgR');
+  svgL.innerHTML=''; svgR.innerHTML='';
+
+  // LEFT: draw graph
+  ex.edges.forEach(([u,v],i)=>{
+    const [x1,y1]=ex.positions[u],[x2,y2]=ex.positions[v];
+    const line=makeSvgEl('line',{x1,y1,x2,y2,stroke:'#58a6ff',opacity:.6,'stroke-width':2});
+    svgL.appendChild(line);
+    // edge label
+    const mx=(x1+x2)/2,my=(y1+y2)/2;
+    const t=makeSvgEl('text',{x:mx,y:my-6,fill:'#e3b341','font-size':'10','text-anchor':'middle'});
+    t.textContent=`e${i+1}`;
+    svgL.appendChild(t);
+  });
+  ex.vertices.forEach(v=>{
+    const [x,y]=ex.positions[v];
+    const inVC=ex.vc.includes(v);
+    const c=makeSvgEl('circle',{cx:x,cy:y,r:18,fill:inVC?'rgba(63,185,80,.3)':'rgba(88,166,255,.15)',stroke:inVC?'#3fb950':'#58a6ff','stroke-width':2});
+    svgL.appendChild(c);
+    const t=makeSvgEl('text',{x,y:y+5,fill:'#e6edf3','font-size':'13','text-anchor':'middle','font-weight':'bold'});
+    t.textContent=v;
+    svgL.appendChild(t);
+  });
+  document.getElementById('reductInfoL').innerHTML=`G=(V,E), k=${ex.k}. Vertex Cover (highlighted green) = {${ex.vc.join(',')}}.`;
+
+  // RIGHT: draw set cover
+  // Universe = edges, sets = Sv for each vertex
+  const edgeNames=ex.edges.map((_,i)=>`e${i+1}`);
+  const rowH=32,startY=52,barW=280,gap=6;
+
+  // Universe row at top
+  const uLbl=makeSvgEl('text',{x:10,y:14,fill:'#6e7681','font-size':'10','font-weight':'bold'});
+  uLbl.textContent='U = E (universe of edges):';
+  svgR.appendChild(uLbl);
+  edgeNames.forEach((eName,j)=>{
+    const ex2=10+j*36;
+    const c=makeSvgEl('circle',{cx:ex2+14,cy:32,r:11,fill:'rgba(227,179,65,.2)',stroke:'#e3b341','stroke-width':1.5});
+    svgR.appendChild(c);
+    const t=makeSvgEl('text',{x:ex2+14,y:36,fill:'#e3b341','font-size':'10','text-anchor':'middle'});
+    t.textContent=eName;
+    svgR.appendChild(t);
+  });
+
+  ex.vertices.forEach((v,i)=>{
+    const y=startY+i*(rowH+gap);
+    const sv=ex.edges.map((e,j)=>(e.includes(v)?j:-1)).filter(j=>j>=0);
+    const inVC=ex.vc.includes(v);
+    const bg=inVC?'rgba(63,185,80,.25)':'rgba(88,166,255,.1)';
+    const stroke=inVC?'#3fb950':'#30363d';
+    const rect=makeSvgEl('rect',{x:10,y,width:barW,height:rowH,rx:5,fill:bg,stroke,'stroke-width':2});
+    svgR.appendChild(rect);
+    const lbl=makeSvgEl('text',{x:22,y:y+rowH/2+5,fill:inVC?'#3fb950':'#58a6ff','font-size':'11','font-weight':'bold','font-family':'monospace'});
+    lbl.textContent='S'+v;
+    svgR.appendChild(lbl);
+    sv.forEach((j,k)=>{
+      const ex2=55+k*36;
+      const c=makeSvgEl('circle',{cx:ex2,cy:y+rowH/2,r:11,fill:inVC?'rgba(63,185,80,.4)':'rgba(88,166,255,.2)',stroke:inVC?'#3fb950':'#58a6ff','stroke-width':1});
+      svgR.appendChild(c);
+      const t=makeSvgEl('text',{x:ex2,y:y+rowH/2+4,fill:'#e6edf3','font-size':'10','text-anchor':'middle'});
+      t.textContent=edgeNames[j];
+      svgR.appendChild(t);
+    });
+    if(inVC){
+      const chk=makeSvgEl('text',{x:barW+2,y:y+rowH/2+5,fill:'#3fb950','font-size':'11','text-anchor':'end'});
+      chk.textContent='✓';
+      svgR.appendChild(chk);
+    }
+  });
+  document.getElementById('reductInfoR').innerHTML='U=E={'+edgeNames.join(',')+'}. Sets = {S'+ex.vertices.join(', S')+'}.  Cover (green ✓) = {'+ex.vc.map(v=>'S'+v).join(',')+'}.  |Cover|='+ex.vc.length+' = k='+ex.k+'.';
+}
+
+// ─── COMPARISON MODE ──────────────────────────────────────────
+function runComparison(){
+  const idx=parseInt(document.getElementById('cmpPreset').value)||0;
+  const p=PRESETS[idx];
+  universe=[...p.u]; sets=p.sets.map(s=>[...s]); kParam=p.k;
+
+  // Greedy
+  const t0=performance.now();
+  let {cover:gCover,ops:gOps,exceedsK}=runGreedy(universe,sets,kParam);
+  const tG=performance.now()-t0;
+
+  // Brute-force
+  const t1=performance.now();
+  let {cover:bCover,ops:bOps}=runBrute(universe,sets,kParam);
+  const tB=performance.now()-t1;
+
+  document.getElementById('cmpBruteOps').textContent=bOps.toLocaleString();
+  document.getElementById('cmpBruteSize').textContent=bCover?bCover.length:'–';
+  document.getElementById('cmpBruteTime').textContent=tB.toFixed(2);
+  document.getElementById('cmpGreedyOps').textContent=gOps.toLocaleString();
+  document.getElementById('cmpGreedySize').textContent=gCover?gCover.length+(exceedsK?' ⚠':''):'–';
+  document.getElementById('cmpGreedyTime').textContent=tG.toFixed(2);
+
+  renderCmpViz('cmpBruteViz',bCover,universe,sets,'brute',false);
+  renderCmpViz('cmpGreedyViz',gCover,universe,sets,'greedy',exceedsK);
+
+  const ratio=bOps>0?(gOps/bOps).toFixed(4):'–';
+  const optimal=bCover&&gCover&&bCover.length===gCover.length&&!exceedsK;
+  const greedyLabel=!gCover?'No cover found (some elements uncoverable)'
+    :exceedsK?`Covered U in ${gCover.length} sets — exceeds k=${kParam} (approx ratio: ${gCover.length}/${bCover?bCover.length:'OPT'})`
+    :`Cover size ${gCover.length} ≤ k=${kParam} ✓`;
+  document.getElementById('cmpSummary').innerHTML=`
+    <div class="${optimal?'concept-box':'warn-box'}">
+      <h4>${optimal?'✅ Greedy found optimal solution!':exceedsK?'⚠️ Greedy covered U but used more than k sets':'⚠️ Greedy is NOT optimal on this instance'}</h4>
+      <p style="font-size:.82rem">Brute-force (optimal) cover size: <strong>${bCover?bCover.length:'none'}</strong>.
+      Greedy result: <strong>${greedyLabel}</strong>.<br>
+      Greedy operations: <strong>${gOps}</strong>. Brute-force operations: <strong>${bOps.toLocaleString()}</strong>.
+      Speedup: <strong>${bOps>gOps?(bOps/Math.max(gOps,1)).toFixed(0)+'×':'greedy slower'}</strong>.</p>
+    </div>`;
+
+  renderLegend(); renderUniverse(new Set(),[]); renderSvg(new Set(),[]);
+}
+
+function renderCmpViz(divId,cover,U,S,_mode,exceedsK){
+  const div=document.getElementById(divId);
+  if(!cover){div.innerHTML='<span style="color:var(--accent3)">No valid cover found.</span>';return;}
+  const cov=new Set();
+  cover.forEach(i=>S[i].forEach(e=>cov.add(e)));
+  const note=exceedsK?`<div style="margin-top:.4rem;color:var(--warn);font-size:.8rem">⚠ Greedy covered all elements but used more than k sets (${cover.length} sets).</div>`:'';
+  div.innerHTML=cover.map(i=>`<div style="margin:.25rem 0"><span class="set-tag" style="background:${COLORS[i%COLORS.length]}22;color:${COLORS[i%COLORS.length]};border:1px solid ${COLORS[i%COLORS.length]}55">S${i+1}={${S[i].join(',')}}</span></div>`).join('')+
+    `<div style="margin-top:.5rem">Elements covered: <strong>${cov.size}/${U.length}</strong></div>`+note;
+}
+
+function runGreedy(U,S,k){
+  let covered=new Set(),chosen=[],ops=0;
+  while(covered.size<U.length){
+    let bestIdx=-1,bestCount=-1;
+    S.forEach((s,i)=>{
+      if(chosen.includes(i))return;
+      ops++;
+      const g=s.filter(e=>!covered.has(e)).length;
+      if(g>bestCount){bestCount=g;bestIdx=i;}
+    });
+    if(bestIdx===-1||bestCount===0)break;
+    chosen.push(bestIdx);
+    S[bestIdx].forEach(e=>covered.add(e));
+  }
+  // Return cover regardless of whether it exceeds k; caller checks size
+  return{cover:covered.size===U.length?chosen:null,ops,exceedsK:chosen.length>k};
+}
+
+function runBrute(U,S,k){
+  let ops=0;
+  for(let r=1;r<=k;r++){
+    for(const combo of combinations(S.length,r)){
+      ops+=combo.length;
+      const cov=new Set();
+      combo.forEach(i=>S[i].forEach(e=>cov.add(e)));
+      if(U.every(e=>cov.has(e)))return{cover:combo,ops};
+    }
+  }
+  return{cover:null,ops};
+}
+
+// ─── GROWTH CHART ─────────────────────────────────────────────
+function drawGrowthChart(){
+  const canvas=document.getElementById('growthChart');
+  if(!canvas)return;
+  // Use explicit pixel dimensions so offsetHeight is never 0
+  const DPR=window.devicePixelRatio||1;
+  const cssW=canvas.clientWidth||canvas.offsetWidth||800;
+  const cssH=360;
+  canvas.width=cssW*DPR; canvas.height=cssH*DPR;
+  canvas.style.width=cssW+'px'; canvas.style.height=cssH+'px';
+  const ctx=canvas.getContext('2d');
+  ctx.scale(DPR,DPR);
+  const W=cssW, H=cssH;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0a0f16'; ctx.fillRect(0,0,W,H);
+
+  const pad={l:70,r:30,t:30,b:70};
+  const cw=W-pad.l-pad.r, ch=H-pad.t-pad.b;
+
+  const mVals=Array.from({length:15},(_,i)=>i+2);
+  const nVal=10;
+  const bruteOps=mVals.map(m=>Math.pow(2,m)*m*nVal);
+  const greedyOps=mVals.map(m=>m*nVal);
+  const maxOp=Math.max(...bruteOps);
+  const minOp=1;
+  const logMin=Math.log10(minOp), logMax=Math.log10(maxOp);
+
+  function toX(i){return pad.l+i*(cw/(mVals.length-1));}
+  function toY(v){return pad.t+ch-(Math.log10(Math.max(v,minOp))-logMin)/(logMax-logMin)*ch;}
+
+  // Grid lines + Y-axis labels
+  const yTicks=[1,10,100,1000,10000,100000,1000000];
+  ctx.lineWidth=0.5; ctx.strokeStyle='rgba(48,54,61,.5)';
+  ctx.fillStyle='#6e7681'; ctx.font=`${Math.max(10,Math.round(cssW/70))}px monospace`; ctx.textAlign='right';
+  yTicks.forEach(v=>{
+    if(v>maxOp*1.2)return;
+    const y=toY(v);
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+cw,y); ctx.stroke();
+    let label=v>=1e6?(v/1e6).toFixed(0)+'M':v>=1000?(v/1000).toFixed(0)+'K':v.toString();
+    ctx.fillStyle='#6e7681'; ctx.fillText(label,pad.l-10,y+4);
+  });
+
+  // Y-axis title (rotated)
+  ctx.save();
+  ctx.translate(14,pad.t+ch/2);
+  ctx.rotate(-Math.PI/2);
+  ctx.fillStyle='#6e7681'; ctx.font=`11px sans-serif`; ctx.textAlign='center';
+  ctx.fillText('Operations (log scale)',0,0);
+  ctx.restore();
+
+  // Axes
+  ctx.strokeStyle='#30363d'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(pad.l,pad.t); ctx.lineTo(pad.l,pad.t+ch); ctx.lineTo(pad.l+cw,pad.t+ch); ctx.stroke();
+
+  // X-axis ticks and labels
+  ctx.fillStyle='#6e7681'; ctx.font=`11px monospace`; ctx.textAlign='center';
+  mVals.forEach((m,i)=>{
+    const x=toX(i);
+    ctx.beginPath(); ctx.moveTo(x,pad.t+ch); ctx.lineTo(x,pad.t+ch+5); ctx.strokeStyle='#30363d'; ctx.stroke();
+    if(i%2===0) ctx.fillText('m='+m,x,pad.t+ch+18);
+  });
+  // X-axis title
+  ctx.fillStyle='#6e7681'; ctx.font='12px sans-serif'; ctx.textAlign='center';
+  ctx.fillText('Number of subsets (m)',pad.l+cw/2,H-10);
+
+  // Brute-force line with glow
+  ctx.save();
+  ctx.shadowColor='#f78166'; ctx.shadowBlur=6;
+  ctx.strokeStyle='#f78166'; ctx.lineWidth=2.5;
+  ctx.beginPath();
+  bruteOps.forEach((v,i)=>{i===0?ctx.moveTo(toX(i),toY(v)):ctx.lineTo(toX(i),toY(v));});
+  ctx.stroke();
+  ctx.restore();
+
+  // Greedy line with glow
+  ctx.save();
+  ctx.shadowColor='#3fb950'; ctx.shadowBlur=6;
+  ctx.strokeStyle='#3fb950'; ctx.lineWidth=2.5;
+  ctx.beginPath();
+  greedyOps.forEach((v,i)=>{i===0?ctx.moveTo(toX(i),toY(v)):ctx.lineTo(toX(i),toY(v));});
+  ctx.stroke();
+  ctx.restore();
+
+  // Endpoint dots
+  [[bruteOps,'#f78166'],[greedyOps,'#3fb950']].forEach(([ops,col])=>{
+    const last=ops.length-1;
+    ctx.beginPath(); ctx.arc(toX(last),toY(ops[last]),4,0,Math.PI*2);
+    ctx.fillStyle=col; ctx.fill();
+  });
+
+  // Legend (bottom-right inside chart)
+  const legW=170, legH=46, legX=pad.l+cw-legW-10, legY=pad.t+10;
+  ctx.fillStyle='rgba(13,17,23,.88)'; ctx.strokeStyle='#30363d'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.roundRect(legX,legY,legW,legH,5); ctx.fill(); ctx.stroke();
+  [['#f78166','Brute-Force  O(2ᵐ·m·n)',0],['#3fb950','Greedy  O(m·n)',1]].forEach(([col,label,row])=>{
+    const ly=legY+13+row*19;
+    ctx.fillStyle=col; ctx.fillRect(legX+10,ly-7,16,9);
+    ctx.fillStyle='#c9d1d9'; ctx.font='11px sans-serif'; ctx.textAlign='left';
+    ctx.fillText(label,legX+32,ly+1);
+  });
+}
+
+function buildRatioTable(){
+  const tb=document.getElementById('ratioTable');
+  if(!tb)return;
+  tb.innerHTML=[5,10,20,50,100,500,1000].map(n=>{
+    const ln=Math.log(n); const hn=Array.from({length:n},(_,i)=>1/(i+1)).reduce((a,b)=>a+b,0);
+    return`<tr><td>${n}</td><td>${ln.toFixed(3)}</td><td>${hn.toFixed(3)}</td><td>≤ ${hn.toFixed(2)}</td></tr>`;
+  }).join('');
+}
+
+function updateLiveOps(){
+  const m=parseInt(document.getElementById('liveM').value)||8;
+  const n=parseInt(document.getElementById('liveN').value)||10;
+  document.getElementById('liveMVal').textContent=m;
+  document.getElementById('liveNVal').textContent=n;
+  const brute=Math.pow(2,m)*m*n;
+  const greedy=m*n;
+  document.getElementById('liveBrute').textContent=brute>1e9?brute.toExponential(2):brute.toLocaleString();
+  document.getElementById('liveGreedy').textContent=greedy.toLocaleString();
+  document.getElementById('liveRatio').textContent=(brute/greedy).toExponential(2)+'×';
+}
+
+// ─── INIT ─────────────────────────────────────────────────────
+(function init(){
+  // polyfill roundRect for older browsers
+  if(!CanvasRenderingContext2D.prototype.roundRect){
+    CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){
+      this.beginPath();this.moveTo(x+r,y);this.lineTo(x+w-r,y);this.quadraticCurveTo(x+w,y,x+w,y+r);
+      this.lineTo(x+w,y+h-r);this.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+      this.lineTo(x+r,y+h);this.quadraticCurveTo(x,y+h,x,y+h-r);
+      this.lineTo(x,y+r);this.quadraticCurveTo(x,y,x+r,y);this.closePath();
+    };
+  }
+  loadPreset(0);
+  renderPseudocode('greedy',-1);
+  // Redraw chart on resize if analysis tab is visible
+  window.addEventListener('resize',()=>{
+    if(document.getElementById('tab-analysis').classList.contains('active'))drawGrowthChart();
+  });
+})();
+</script>
+</body>
+</html>
